@@ -15,7 +15,18 @@ pipeline {
         stage('Docker Image Build') {
             steps {
                 script {
-                    oDockImage = docker.build(strDockerImage, "-f Dockerfile .")
+                    def oDockImage = docker.build(strDockerImage, "-f Dockerfile .")
+                }
+            }
+        }
+
+        stage('Docker Image Push') {
+            steps {
+                script {
+                    def oDockImage = docker.image(strDockerImage)
+                    docker.withRegistry('', 'docker-auth') {
+                        oDockImage.push()
+                    }
                 }
             }
         }
@@ -23,7 +34,8 @@ pipeline {
         stage('Deploy Server') {
             steps {
                 sshagent(credentials: ['Deploy-Privatekey']) {
-                    sh 'scp -o StrictHostKeyChecking=no index.html ubuntu@54.180.228.177:/var/www/html/'
+                    sh "ssh -o StrictHostKeyChecking=no ubuntu@54.180.228.177 docker container rm -f sampleweb || true"
+                    sh "ssh -o StrictHostKeyChecking=no ubuntu@54.180.228.177 docker run -d -p 80:80 --name sampleweb ${strDockerImage}"
                 }
             }
         }
